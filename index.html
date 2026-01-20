@@ -17,6 +17,22 @@
   --thin:#e9e9e9;
 }
 
+.stats-bar{
+  display:flex;
+  flex-wrap:wrap;
+  gap:14px;
+  margin:14px 0 22px;
+  padding:12px 14px;
+  border:1px solid var(--thin);
+  background:#fafafa;
+  font-size:13px;
+}
+
+.stat{
+  font-weight:900;
+  white-space:nowrap;
+}
+    
 /* =========================
    Base / Mobile-first
    ========================= */
@@ -77,6 +93,10 @@ h1 {
   flex-wrap:wrap;
 }
 
+<div id="stats-bar" class="stats-bar">
+  <div class="stat">Loading totals…</div>
+</div>
+    
 .pill {
   border:1px solid var(--thin);
   padding:6px 10px;
@@ -259,6 +279,44 @@ a:hover{
     return s ? s : "Unknown";
   }
 
+<script>
+  const STATS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?gid=1186883001&single=true&output=tsv";
+  const SUMMARY_ROW_INDEX = 180; // adjust if needed
+
+  function loadStatsRow() {
+    fetch(STATS_URL)
+      .then(res => res.text())
+      .then(text => {
+        const lines = text.trim().split(/\r?\n/);
+        const row = lines[SUMMARY_ROW_INDEX];
+        if (!row) throw new Error("Stats row not found");
+
+        const cells = row
+          .split("\t")
+          .map(v => v.replace(/^"|"$/g, "").trim())
+          .filter(v => v.length > 0);
+
+        const statsBar = document.getElementById("stats-bar");
+        statsBar.innerHTML = "";
+
+        cells.forEach(cellText => {
+          const div = document.createElement("div");
+          div.className = "stat";
+          div.textContent = cellText;
+          statsBar.appendChild(div);
+        });
+      })
+      .catch(err => {
+        console.error("Stats load failed:", err);
+        document.getElementById("stats-bar").innerHTML =
+          "<div class='stat'>Summary stats unavailable</div>";
+      });
+  }
+
+  loadStatsRow();
+</script>
+
+    
   fetch(SHEET_URL)
     .then(res => res.text())
     .then(text => {
