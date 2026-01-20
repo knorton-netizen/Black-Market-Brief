@@ -29,7 +29,6 @@
       max-width:900px;
       margin-left:auto;
       margin-right:auto;
-      -webkit-text-size-adjust:100%;
     }
 
     h1{
@@ -76,7 +75,7 @@
     }
 
     /* =========================
-       MOBILE-SAFE STATS TICKER
+       CONTINUOUS STATS TICKER
        ========================= */
 
     .stats-bar{
@@ -93,10 +92,14 @@
 
     .stats-track{
       display:flex;
+      width:max-content;
+      animation: marquee 40s linear infinite;
+    }
+
+    .stats-group{
+      display:flex;
       gap:28px;
       padding:10px 0;
-      will-change:transform;
-      animation:stats-scroll 30s linear infinite;
     }
 
     .stat{
@@ -105,9 +108,9 @@
       white-space:nowrap;
     }
 
-    @keyframes stats-scroll{
-      from{ transform:translateX(100%); }
-      to{ transform:translateX(-100%); }
+    @keyframes marquee{
+      from{ transform:translateX(0); }
+      to{ transform:translateX(-50%); }
     }
 
     @media (hover:hover){
@@ -193,11 +196,12 @@
     <div id="last-updated">Updated: —</div>
   </div>
 
-  <!-- Stats Ticker -->
+  <!-- Continuous ticker -->
   <div class="stats-bar">
     <div class="stats-mask">
       <div id="stats-track" class="stats-track">
-        <div class="stat">Loading totals…</div>
+        <div class="stats-group" id="stats-group-a"></div>
+        <div class="stats-group" id="stats-group-b"></div>
       </div>
     </div>
   </div>
@@ -218,10 +222,6 @@
     const STATS_URL =
       "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?gid=1186883001&single=true&output=tsv";
 
-    /* =========================
-       HELPERS
-       ========================= */
-
     function splitTSV(line){
       return line.split("\t").map(v => (v||"").trim().replace(/^"|"$/g,""));
     }
@@ -232,20 +232,14 @@
 
     function parseHeadlinesTSV(text){
       const lines = text.trim().split(/\r?\n/);
-      if (lines.length < 2) return [];
-
       const headers = splitTSV(lines[0]).map(h => h.toLowerCase());
-      const idxTitle = headers.indexOf("article title");
-      const idxLink  = headers.indexOf("link");
-      const idxState = headers.indexOf("state");
+      const t = headers.indexOf("article title");
+      const l = headers.indexOf("link");
+      const s = headers.indexOf("state");
 
-      return lines.slice(1).map(row => {
-        const cols = splitTSV(row);
-        return {
-          title: cols[idxTitle],
-          url: cols[idxLink],
-          state: cols[idxState]
-        };
+      return lines.slice(1).map(r => {
+        const c = splitTSV(r);
+        return { title:c[t], url:c[l], state:c[s] };
       }).filter(r => r.title && r.url);
     }
 
@@ -256,26 +250,22 @@
     fetch(STATS_URL)
       .then(r => r.text())
       .then(t => {
-        const lines = t.trim().split(/\r?\n/);
-        const row = lines[0];
-        if (!row) return;
+        const row = t.trim().split(/\r?\n/)[0];
+        const values = splitTSV(row).filter(Boolean);
 
-        const stats = splitTSV(row).filter(Boolean);
-        const track = document.getElementById("stats-track");
-        track.innerHTML = "";
+        const groupA = document.getElementById("stats-group-a");
+        const groupB = document.getElementById("stats-group-b");
 
-        const doubled = stats.concat(stats);
-        doubled.forEach(txt => {
+        const prefix = "REPORTED SEIZURES SINCE JAN 2025:";
+
+        [prefix, ...values].forEach(txt => {
           const d = document.createElement("div");
           d.className = "stat";
           d.textContent = txt;
-          track.appendChild(d);
+          groupA.appendChild(d);
         });
 
-        /* Force iOS Safari reflow */
-        track.style.animation = "none";
-        track.offsetHeight;
-        track.style.animation = "";
+        groupB.innerHTML = groupA.innerHTML;
       });
 
     /* =========================
@@ -285,49 +275,40 @@
     fetch(HEADLINES_URL)
       .then(r => r.text())
       .then(t => {
-        const entries = parseHeadlinesTSV(t).slice(0, 500);
+        const entries = parseHeadlinesTSV(t).slice(0,500);
 
-        entries.sort((a, b) => {
-          const sa = normalizeState(a.state);
-          const sb = normalizeState(b.state);
-          if (sa === "National" && sb !== "National") return -1;
-          if (sb === "National" && sa !== "National") return 1;
-          if (sa !== sb) return sa.localeCompare(sb);
+        entries.sort((a,b)=>{
+          const sa=normalizeState(a.state), sb=normalizeState(b.state);
+          if(sa==="National"&&sb!=="National")return-1;
+          if(sb==="National"&&sa!=="National")return 1;
+          if(sa!==sb)return sa.localeCompare(sb);
           return a.title.localeCompare(b.title);
         });
 
-        const list = document.getElementById("headline-list");
-        list.innerHTML = "";
-        let currentState = null;
+        const list=document.getElementById("headline-list");
+        list.innerHTML="";
+        let current=null;
 
-        entries.forEach(item => {
-          const state = normalizeState(item.state);
-
-          if (state !== currentState) {
-            currentState = state;
-            const h = document.createElement("li");
-            h.className = "state-header";
-            h.textContent = state;
+        entries.forEach(e=>{
+          const s=normalizeState(e.state);
+          if(s!==current){
+            current=s;
+            const h=document.createElement("li");
+            h.className="state-header";
+            h.textContent=s;
             list.appendChild(h);
           }
-
-          const li = document.createElement("li");
-          li.className = "headline-item";
-          const a = document.createElement("a");
-          a.href = item.url;
-          a.target = "_blank";
-          a.rel = "noopener noreferrer";
-          a.textContent = item.title;
+          const li=document.createElement("li");
+          li.className="headline-item";
+          const a=document.createElement("a");
+          a.href=e.url; a.target="_blank"; a.rel="noopener noreferrer";
+          a.textContent=e.title;
           li.appendChild(a);
           list.appendChild(li);
         });
 
         document.getElementById("last-updated").textContent =
           "Updated: " + new Date().toLocaleString();
-      })
-      .catch(() => {
-        document.getElementById("headline-list").innerHTML =
-          "<li>Unable to load headlines.</li>";
       });
   </script>
 
