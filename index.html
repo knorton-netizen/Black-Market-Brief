@@ -75,53 +75,45 @@
     }
 
     /* =========================
-       CONTINUOUS STATS TICKER
+       SEIZURE CLOCK (Debt-style)
        ========================= */
 
-    .stats-bar{
+    .seizure-clock{
       border:1px solid var(--thin);
       background:#fafafa;
-      margin:14px 0 22px;
-      overflow:hidden;
+      padding:14px 16px;
+      margin:16px 0 24px;
     }
 
-    .stats-mask{
-      width:100%;
-      overflow:hidden;
-    }
-
-    .stats-track{
-      display:flex;
-      width:max-content;
-      animation: marquee 40s linear infinite;
-    }
-
-    .stats-group{
-      display:flex;
-      gap:28px;
-      padding:10px 0;
-    }
-
-    .stat{
-      font-size:13px;
+    .clock-title{
+      font-size:14px;
       font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:1px;
+      margin-bottom:10px;
+    }
+
+    .clock-stats{
+      list-style:none;
+      padding:0;
+      margin:0;
+    }
+
+    .clock-stats li{
+      font-size:14px;
+      font-weight:800;
+      margin-bottom:6px;
       white-space:nowrap;
     }
 
-    @keyframes marquee{
-      from{ transform:translateX(0); }
-      to{ transform:translateX(-50%); }
-    }
-
-    @media (hover:hover){
-      .stats-bar:hover .stats-track{
-        animation-play-state:paused;
-      }
-    }
-
-    @media (prefers-reduced-motion: reduce){
-      .stats-track{
-        animation:none;
+    /* Desktop placement (top-right) */
+    @media (min-width:900px){
+      .seizure-clock{
+        position:absolute;
+        top:120px;
+        right:calc((100vw - 900px)/2);
+        width:340px;
+        margin:0;
       }
     }
 
@@ -196,14 +188,10 @@
     <div id="last-updated">Updated: —</div>
   </div>
 
-  <!-- Continuous ticker -->
-  <div class="stats-bar">
-    <div class="stats-mask">
-      <div id="stats-track" class="stats-track">
-        <div class="stats-group" id="stats-group-a"></div>
-        <div class="stats-group" id="stats-group-b"></div>
-      </div>
-    </div>
+  <!-- Seizure Clock -->
+  <div class="seizure-clock">
+    <div id="clock-title" class="clock-title">Loading totals…</div>
+    <ul id="clock-stats" class="clock-stats"></ul>
   </div>
 
   <!-- Headlines -->
@@ -244,27 +232,31 @@
     }
 
     /* =========================
-       LOAD STATS (ROW 1)
+       LOAD SEIZURE CLOCK
        ========================= */
 
     fetch(STATS_URL)
       .then(r => r.text())
       .then(t => {
         const row = t.trim().split(/\r?\n/)[0];
-        const values = splitTSV(row).filter(Boolean);
+        if(!row) return;
 
-        const groupA = document.getElementById("stats-group-a");
-        const groupB = document.getElementById("stats-group-b");
+        const cells = splitTSV(row);
 
-        values.forEach(txt => {
-        const d = document.createElement("div");
-        d.className = "stat";
-        d.textContent = txt;
-        groupA.appendChild(d);
-          });
+        const title = cells[0];        // A1
+        const values = cells.slice(5,12); // F1 → L1
 
+        document.getElementById("clock-title").textContent = title;
 
-        groupB.innerHTML = groupA.innerHTML;
+        const list = document.getElementById("clock-stats");
+        list.innerHTML = "";
+
+        values.forEach(v => {
+          if(!v) return;
+          const li = document.createElement("li");
+          li.textContent = v;
+          list.appendChild(li);
+        });
       });
 
     /* =========================
@@ -308,6 +300,10 @@
 
         document.getElementById("last-updated").textContent =
           "Updated: " + new Date().toLocaleString();
+      })
+      .catch(() => {
+        document.getElementById("headline-list").innerHTML =
+          "<li>Unable to load headlines.</li>";
       });
   </script>
 
