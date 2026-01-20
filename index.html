@@ -184,7 +184,7 @@
     <div id="last-updated">Updated: —</div>
   </div>
 
-  <!-- Auto-scroll stats banner -->
+  <!-- Stats ticker -->
   <div id="stats-bar" class="stats-bar">
     <div id="stats-track" class="stats-track">
       <div class="stat">Loading totals…</div>
@@ -197,73 +197,126 @@
   </ul>
 
   <script>
-    const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?output=tsv";
-    const STATS_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?gid=1186883001&single=true&output=tsv";
-    const SUMMARY_ROW_INDEX = 180;
+    /* =========================
+       DATA SOURCES
+       ========================= */
+
+    const HEADLINES_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?gid=1559123090&single=true&output=tsv";
+
+    const STATS_URL =
+      "https://docs.google.com/spreadsheets/d/e/2PACX-1vTz6qSLgIjDAsDkravmNu3PKrXbDHyGfKHAEY5r0Tyg0ot0co7rCX_S0Y5XtDgOQ34q0DBH1o1tRbbE/pub?gid=1186883001&single=true&output=tsv";
+
+    /* =========================
+       HELPERS
+       ========================= */
 
     function splitTSV(line){
       return line.split("\t").map(v => (v||"").trim().replace(/^"|"$/g,""));
     }
 
-    function parseTSV(text){
-      const lines = text.trim().split(/\r?\n/);
-      const headers = splitTSV(lines[0]).map(h => h.toLowerCase());
-      const t = headers.indexOf("article title");
-      const l = headers.indexOf("link");
-      const s = headers.indexOf("state");
-
-      return lines.slice(1).map(r => {
-        const c = splitTSV(r);
-        return { title:c[t], url:c[l], state:c[s]||"Unknown" };
-      }).filter(x => x.title && x.url);
-    }
-
     function normalizeState(s){
-      return (s||"Unknown").trim() || "Unknown";
+      return (s || "Unknown").trim() || "Unknown";
     }
 
-    /* Load stats banner */
+    function parseHeadlinesTSV(text){
+      const lines = text.trim().split(/\r?\n/);
+      if (lines.length < 2) return [];
+
+      const headers = splitTSV(lines[0]).map(h => h.toLowerCase());
+      const idxTitle = headers.indexOf("article title");
+      const idxLink  = headers.indexOf("link");
+      const idxState = headers.indexOf("state");
+
+      return lines.slice(1).map(row => {
+        const cols = splitTSV(row);
+        return {
+          title: cols[idxTitle],
+          url: cols[idxLink],
+          state: cols[idxState]
+        };
+      }).filter(r => r.title && r.url);
+    }
+
+    /* =========================
+       LOAD STATS (ROW 1)
+       ========================= */
+
     fetch(STATS_URL)
-      .then(r=>r.text())
-      .then(t=>{
-        const row = t.trim().split(/\r?\n/)[SUMMARY_ROW_INDEX];
-        if(!row) return;
+      .then(r => r.text())
+      .then(t => {
+        const lines = t.trim().split(/\r?\n/);
+        const row = lines[0]; // FIRST ROW
+        if (!row) return;
+
         const stats = splitTSV(row).filter(Boolean);
         const track = document.getElementById("stats-track");
-        track.innerHTML="";
-        [...stats, ...stats].forEach(txt=>{
-          const d=document.createElement("div");
-          d.className="stat";
-          d.textContent=txt;
+        track.innerHTML = "";
+
+        [...stats, ...stats].forEach(txt => {
+          const d = document.createElement("div");
+          d.className = "stat";
+          d.textContent = txt;
           track.appendChild(d);
         });
       });
 
-    /* Load headlines */
-    fetch(SHEET_URL)
-      .then(r=>r.text())
-      .then(t=>{
-        const entries=parseTSV(t).slice(0,500);
-        entries.sort((a,b)=>{
-          const sa=normalizeState(a.state), sb=normalizeState(b.state);
-          if(sa==="National"&&sb!=="National")return-1;
-          if(sb==="National"&&sa!=="National")return 1;
-          if(sa!==sb)return sa.localeCompare(sb);
+    /* =========================
+       LOAD HEADLINES
+       ========================= */
+
+    fetch(HEADLINES_URL)
+      .then(r => r.text())
+      .then(t => {
+        const entries = parseHeadlinesTSV(t).slice(0, 500);
+
+        entries.sort((a, b) => {
+          const sa = normalizeState(a.state);
+          const sb = normalizeState(b.state);
+
+          if (sa === "National" && sb !== "National") return -1;
+          if (sb === "National" && sa !== "National") return 1;
+          if (sa !== sb) return sa.localeCompare(sb);
           return a.title.localeCompare(b.title);
         });
 
-        const list=document.getElementById("headline-list");
-        list.innerHTML="";
-        let cur=null;
+        const list = document.getElementById("headline-list");
+        list.innerHTML = "";
+        let currentState = null;
 
-        entries.forEach(e=>{
-          const st=normalizeState(e.state);
-          if(st!==cur){
-            cur=st;
-            const h=document.createElement("li");
-            h.className="state-header";
-            h.textContent=st;
+        entries.forEach(item => {
+          const state = normalizeState(item.state);
+
+          if (state !== currentState) {
+            currentState = state;
+            const h = document.createElement("li");
+            h.className = "state-header";
+            h.textContent = state;
             list.appendChild(h);
           }
-          const li=document.createElement("li");
-          li.className="headline-item";
+
+          const li = document.createElement("li");
+          li.className = "headline-item";
+          const a = document.createElement("a");
+          a.href = item.url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.textContent = item.title;
+          li.appendChild(a);
+          list.appendChild(li);
+        });
+
+        document.getElementById("last-updated").textContent =
+          "Updated: " + new Date().toLocaleString();
+      })
+      .catch(() => {
+        document.getElementById("headline-list").innerHTML =
+          "<li>Unable to load headlines.</li>";
+      });
+  </script>
+
+  <div class="footer">
+    Built to track contraband enforcement actions.
+  </div>
+</body>
+</html>
