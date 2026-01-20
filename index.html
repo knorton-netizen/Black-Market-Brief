@@ -256,14 +256,13 @@
         const groupA = document.getElementById("stats-group-a");
         const groupB = document.getElementById("stats-group-b");
 
-        const prefix = "REPORTED SEIZURES SINCE JAN 2025:";
+        values.forEach(txt => {
+        const d = document.createElement("div");
+        d.className = "stat";
+        d.textContent = txt;
+        groupA.appendChild(d);
+          });
 
-        [prefix, ...values].forEach(txt => {
-          const d = document.createElement("div");
-          d.className = "stat";
-          d.textContent = txt;
-          groupA.appendChild(d);
-        });
 
         groupB.innerHTML = groupA.innerHTML;
       });
