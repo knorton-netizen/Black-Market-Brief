@@ -74,22 +74,51 @@
       background:#fafafa;
     }
 
-    /* Stats bar */
+    /* =========================
+       Auto-scroll stats banner
+       ========================= */
+
     .stats-bar{
-      display:flex;
-      flex-wrap:wrap;
-      gap:14px;
-      margin:14px 0 22px;
-      padding:12px 14px;
+      position:relative;
+      overflow:hidden;
       border:1px solid var(--thin);
       background:#fafafa;
-      font-size:13px;
+      margin:14px 0 22px;
+      padding:10px 0;
+    }
+
+    .stats-track{
+      display:inline-flex;
+      gap:28px;
+      padding-left:100%;
+      animation:stats-scroll 45s linear infinite;
+    }
+
+    .stats-bar:hover .stats-track{
+      animation-play-state:paused;
     }
 
     .stat{
+      font-size:13px;
       font-weight:900;
       white-space:nowrap;
     }
+
+    @keyframes stats-scroll{
+      from{ transform:translateX(0); }
+      to{ transform:translateX(-100%); }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .stats-track{
+        animation:none;
+        padding-left:0;
+      }
+    }
+
+    /* =========================
+       Headlines
+       ========================= */
 
     ul{
       list-style:none;
@@ -155,9 +184,11 @@
     <div id="last-updated">Updated: —</div>
   </div>
 
-  <!-- Stats bar -->
+  <!-- Auto-scroll stats banner -->
   <div id="stats-bar" class="stats-bar">
-    <div class="stat">Loading totals…</div>
+    <div id="stats-track" class="stats-track">
+      <div class="stat">Loading totals…</div>
+    </div>
   </div>
 
   <!-- Headlines -->
@@ -191,20 +222,20 @@
       return (s||"Unknown").trim() || "Unknown";
     }
 
-    /* Load stats */
+    /* Load stats banner */
     fetch(STATS_URL)
       .then(r=>r.text())
       .then(t=>{
         const row = t.trim().split(/\r?\n/)[SUMMARY_ROW_INDEX];
         if(!row) return;
         const stats = splitTSV(row).filter(Boolean);
-        const bar = document.getElementById("stats-bar");
-        bar.innerHTML="";
-        stats.forEach(txt=>{
+        const track = document.getElementById("stats-track");
+        track.innerHTML="";
+        [...stats, ...stats].forEach(txt=>{
           const d=document.createElement("div");
           d.className="stat";
           d.textContent=txt;
-          bar.appendChild(d);
+          track.appendChild(d);
         });
       });
 
@@ -236,24 +267,3 @@
           }
           const li=document.createElement("li");
           li.className="headline-item";
-          const a=document.createElement("a");
-          a.href=e.url; a.target="_blank"; a.rel="noopener noreferrer";
-          a.textContent=e.title;
-          li.appendChild(a);
-          list.appendChild(li);
-        });
-
-        document.getElementById("last-updated").textContent =
-          "Updated: " + new Date().toLocaleString();
-      })
-      .catch(()=>{
-        document.getElementById("headline-list").innerHTML =
-          "<li>Unable to load headlines.</li>";
-      });
-  </script>
-
-  <div class="footer">
-    Built to track contraband enforcement actions.
-  </div>
-</body>
-</html>
