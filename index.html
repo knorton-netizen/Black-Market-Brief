@@ -63,7 +63,9 @@ h1{
 }
 
 @media(max-width:850px){
-  .layout{grid-template-columns:1fr;}
+  .layout{
+    grid-template-columns:1fr;
+  }
 }
 
 /* ===== SCOREBOARD ===== */
@@ -84,33 +86,28 @@ h1{
   margin-bottom:14px;
 }
 
-.digits{
+.number-line{
   display:flex;
-  gap:3px;
   align-items:center;
   flex-wrap:nowrap;
-}
-
-.digit,
-.sep{
-  height:40px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  background:#000;
-  color:#fff;
+  font-size:18px;
   font-weight:900;
-  border-radius:3px;
 }
 
 .digit{
-  width:26px;
-  font-size:18px;
+  width:24px;
+  height:36px;
+  background:#000;
+  color:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin-right:2px;
+  border-radius:3px;
 }
 
-.sep{
-  width:14px;
-  font-size:16px;
+.text{
+  margin:0 2px;
 }
 
 .label{
@@ -169,14 +166,16 @@ a{color:#000;text-decoration:underline;}
 
 <div class="layout">
 
+  <!-- SCOREBOARD FIRST IN DOM -->
+  <div class="scoreboard" id="scoreboard">
+    <h3 id="sb-title">Loading…</h3>
+  </div>
+
+  <!-- HEADLINES -->
   <div>
     <ul id="headline-list">
       <li>Loading headlines…</li>
     </ul>
-  </div>
-
-  <div class="scoreboard" id="scoreboard">
-    <h3 id="sb-title">Reported Seizures Since Jan 2025:</h3>
   </div>
 
 </div>
@@ -203,55 +202,43 @@ const LABELS=[
 
 function splitTSV(l){return l.split("\t").map(v=>v.trim());}
 
-function buildDigits(container,str){
+function renderNumber(container,value){
   container.innerHTML="";
-  [...str].forEach(ch=>{
-    const el=document.createElement("div");
-    el.className=/[0-9]/.test(ch)?"digit":"sep";
-    el.textContent=ch;
-    container.appendChild(el);
+  [...value].forEach(ch=>{
+    if(/\d/.test(ch)){
+      const d=document.createElement("div");
+      d.className="digit";
+      d.textContent=ch;
+      container.appendChild(d);
+    } else {
+      const t=document.createElement("span");
+      t.className="text";
+      t.textContent=ch;
+      container.appendChild(t);
+    }
   });
-}
-
-function animateUp(container,finalStr){
-  const digits=[...finalStr].filter(c=>/\d/.test(c));
-  let i=0;
-  const interval=setInterval(()=>{
-    if(i>=digits.length){clearInterval(interval);return;}
-    let count=0;
-    const boxes=[...container.children].filter(c=>c.className==="digit");
-    const target=parseInt(digits[i]);
-    const step=setInterval(()=>{
-      boxes[i].textContent=count;
-      if(count===target){clearInterval(step);i++;}
-      count++;
-    },40);
-  },60);
 }
 
 fetch(STATS_URL).then(r=>r.text()).then(t=>{
   const row=splitTSV(t.split(/\r?\n/)[0]);
   document.getElementById("sb-title").textContent=row[0];
-  const vals=[row[5],row[6],row[7],row[8],row[9],row[10],row[11],row[12]];
+
+  const values=row.slice(1);
   const board=document.getElementById("scoreboard");
 
-  vals.forEach((v,i)=>{
-    const num=parseFloat(v.replace(/[^0-9.]/g,""));
-    const isDollar=i===0||i===6;
-    const str=(isDollar?"$":"")+num.toLocaleString("en-US")+(v.includes("+")?"+":"");
-
+  values.forEach((v,i)=>{
     const m=document.createElement("div");
     m.className="metric";
-    const d=document.createElement("div");
-    d.className="digits";
-    buildDigits(d,str);
-    animateUp(d,str);
+
+    const n=document.createElement("div");
+    n.className="number-line";
+    renderNumber(n,v);
 
     const l=document.createElement("div");
     l.className="label";
     l.textContent=LABELS[i];
 
-    m.appendChild(d);
+    m.appendChild(n);
     m.appendChild(l);
     board.appendChild(m);
   });
