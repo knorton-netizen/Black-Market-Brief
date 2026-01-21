@@ -193,8 +193,13 @@ fetch(STATS_URL).then(r=>r.text()).then(t=>{
   document.getElementById("stats-title").textContent=row[0];
 
   const box=document.getElementById("stats-box");
+  box.innerHTML = "";
 
-  row.slice(1).forEach((val,i)=>{
+  // Values are F1–M1 (indices 5 through 12)
+const values = row.slice(5, 13);
+
+values.forEach((val, i) => {
+
     const r=document.createElement("div");
     r.className="stat-row";
 
